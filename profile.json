@@ -1,0 +1,44 @@
+{
+  "roles": [
+    "Software Engineer",
+    "Software Engineer Intern"
+  ],
+  "skills": [
+    "Java",
+    "Spring Boot",
+    "React.js",
+    "Hibernate",
+    "REST APIs",
+    "Kafka",
+    "C++",
+    "SQL Server",
+    "MongoDB",
+    "Redis",
+    "GCP",
+    "Git",
+    "Linux",
+    "Shell Scripting",
+    "JUnit",
+    "Mockito",
+    "Data Structures",
+    "Algorithms",
+    "Object-Oriented Design",
+    "Design Patterns"
+  ],
+  "experience": "Software Engineer with 2 years 9 months of experience in backend development, distributed systems, and microservices. Developed REST APIs and CI/CD pipelines, collaborated in Agile sprints, and enhanced system reliability through testing.",
+  "keywords": [
+    "backend development",
+    "distributed systems",
+    "microservices",
+    "functional programming",
+    "unit testing",
+    "integration testing",
+    "CI/CD",
+    "Agile",
+    "cloud computing",
+    "data structures",
+    "algorithms",
+    "test coverage",
+    "API security"
+  ]
+}
