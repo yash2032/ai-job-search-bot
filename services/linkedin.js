@@ -2,7 +2,8 @@ import { chromium } from "playwright";
 
 export async function fetchLinkedInJobs(queries, location = "India") {
   const browser = await chromium.launch({
-    headless: false // 🔥 IMPORTANT (avoid detection)
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
   });
 
   const context = await browser.newContext({
