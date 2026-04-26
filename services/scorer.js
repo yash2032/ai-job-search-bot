@@ -1,76 +1,107 @@
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import OpenAI from "openai";
 
-const profile = JSON.parse(fs.readFileSync("profile.json", "utf-8"));
+// 🔐 OpenAI setup
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
+// 📂 Resolve profile.json path correctly
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const profilePath = path.join(__dirname, "../profile.json");
+
+// 📄 Load profile safely
+let profile = {};
+
+try {
+  const data = fs.readFileSync(profilePath, "utf-8");
+  profile = JSON.parse(data);
+  console.log("✅ Profile loaded. Skills:", profile.skills?.length || 0);
+} catch (err) {
+  console.log("⚠️ Failed to load profile:", err.message);
+}
+
+// 🧠 Extract safe values
+const skills = profile.skills || [];
+const experience = profile.experience || "";
+const roles = profile.roles || [];
+
+// 🎯 MAIN FUNCTION
 export async function scoreJobs(jobs, query) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0,
-      messages: [
-        {
-          role: "system",
-          content: `
-You are a job matching engine.
+  // 🔥 Fallback if profile is bad
+  if (!Array.isArray(skills) || skills.length === 0) {
+    console.log("⚠️ No skills found, using fallback scoring");
 
-Match jobs STRICTLY based on candidate profile.
+    return jobs.map((j) => ({
+      ...j,
+      score: 50,
+      reason: "Default scoring (no profile data)",
+    }));
+  }
+
+  const scoredJobs = [];
+
+  for (const job of jobs.slice(0, 20)) {
+    try {
+      const prompt = `
+You are a job matching assistant.
 
 Candidate Profile:
-- Roles: ${profile.roles.join(", ")}
-- Skills: ${profile.skills.join(", ")}
-- Experience: ${profile.experience}
+Skills: ${skills.join(", ")}
+Experience: ${experience}
+Preferred Roles: ${roles.join(", ")}
 
-Instructions:
-- Prioritize backend roles
-- Prefer Java, Spring Boot, Kafka, React stack
-- Reject unrelated tech (PHP, WordPress, etc.)
-- Penalize senior roles (>5 years)
-- Prefer relevant experience (2–4 years)
+Job:
+Title: ${job.title}
+Company: ${job.company}
 
-Return ONLY JSON:
-[
-  {
-    "title": "",
-    "company": "",
-    "link": "",
-    "score": 0-100,
-    "reason": "",
-    "apply": true
+Give:
+1. Match score (0–100)
+2. Short reason
+
+Respond ONLY in JSON:
+{
+  "score": number,
+  "reason": "text"
+}
+`;
+
+      const response = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.2,
+      });
+
+      const text = response.choices[0].message.content;
+
+      let parsed;
+
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = {
+          score: 50,
+          reason: "Parsing failed",
+        };
+      }
+
+      scoredJobs.push({
+        ...job,
+        score: parsed.score || 50,
+        reason: parsed.reason || "No reason",
+      });
+    } catch (err) {
+      console.log("❌ Scoring failed:", err.message);
+
+      scoredJobs.push({
+        ...job,
+        score: 50,
+        reason: "Error during scoring",
+      });
+    }
   }
-]
 
-Rules:
-- Keep only relevant jobs
-- Score realistically
-- Preserve original link
-`
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            query,
-            jobs: jobs.slice(0, 25)
-          })
-        }
-      ]
-    })
-  });
-
-  const data = await res.json();
-  const content = data.choices[0].message.content;
-
-  try {
-    return JSON.parse(content);
-  } catch {
-    const match = content.match(/\[[\s\S]*\]/);
-    if (match) return JSON.parse(match[0]);
-
-    console.error("Scoring parse error:", content);
-    return [];
-  }
+  return scoredJobs;
 }
